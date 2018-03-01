@@ -33,6 +33,8 @@ public:
 	int measurementInterval;
 	/// Output directory.
 	std::string outputDirectory;
+	/// Fraction of immune agents.
+	double immuneFraction;
 
 
 

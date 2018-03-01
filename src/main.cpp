@@ -5,6 +5,9 @@
 #include "DataArray.hpp"
 #include "SIRSResults.hpp"
 #include "Timer.hpp"
+#include "Susceptibility.hpp"
+#include "bootstrap.hpp"
+#include "jackKnife.hpp"
 #include <random>
 #include <iostream>
 #include <algorithm>
@@ -40,6 +43,7 @@ int main(int argc, char const *argv[])
     int totalSweeps;
     int measurementInterval;
     std::string outputName;
+    double immuneFraction;
 
     // Set up optional command line arguments.
     boost::program_options::options_description desc("Options for SIRS simulation");
@@ -55,6 +59,7 @@ int main(int argc, char const *argv[])
         ("burn-period,b", boost::program_options::value<int>(&burnPeriod)->default_value(5000), "Burn period for the simulation.")
         ("sweeps,s", boost::program_options::value<int>(&totalSweeps)->default_value(10000), "The number of sweeps in the simulation.")
         ("output,o",boost::program_options::value<std::string>(&outputName)->default_value(getTimeStamp()), "Name of output directory to save output files into.")
+        ("immune,m",boost::program_options::value<double>(&immuneFraction)->default_value(0.0), "Percentage of population who are completely immune to the infection.")
         ("measurement-interval,i", boost::program_options::value<int>(&measurementInterval)->default_value(10), "Number of sweeps between output/measurements")
         ("animate,a","Animate the program by printing the current state of the lattice to an output file during simulation")
         ("help,h", "Produce help message");
@@ -87,7 +92,7 @@ int main(int argc, char const *argv[])
     std::fstream resultsOutput(outputName+"/Results.txt", std::ios::out);
 
     // Create a SIRS lattice that will be used in the simulation.
-    SIRSArray lattice(generator,rowCount, colCount, probSI, probIR, probRS);
+    SIRSArray lattice(generator,rowCount, colCount, probSI, probIR, probRS, immuneFraction);
 
     // Print the initial lattice to an output file.
     latticeOutput << lattice;
@@ -95,88 +100,85 @@ int main(int argc, char const *argv[])
     // Create an object to hold the input parameters.
     SIRSInputParameters inputParameters
     {
-	    rowCount,
-		colCount,
-		probSI,
-		probIR,
-		probRS,
-		burnPeriod,
-		totalSweeps,
-		measurementInterval,
-		outputName
+      rowCount,
+      colCount,
+      probSI,
+      probIR,
+      probRS,
+      burnPeriod,
+      totalSweeps,
+      measurementInterval,
+      outputName,
+      immuneFraction
     };
 
     // Print the input parameters to the command line and to the output file.
-   	std::cout << inputParameters << '\n';
-   	inputParametersOutput << inputParameters << '\n';
+    std::cout << inputParameters << '\n';
+    inputParametersOutput << inputParameters << '\n';
 
-   	// Create an array to store the value of the order parameter on each recorded sweep.
-   	DataArray orderParameterData(totalSweeps/measurementInterval);
+    // Create an array to store the value of the order parameter on each recorded sweep.
+    DataArray orderParameterData(totalSweeps/measurementInterval);
 
 /*************************************************************************************************************************
 ************************************************* Main Loop *************************************************************
 *************************************************************************************************************************/
-   // The program contains two loops, one if the user specified animation, the other if the simulation is to be done
-   // without animation.
-
-   // Loop for doing animation.
-   if(vm.count("animate"))
+  
+  
+   for(int sweep = 0; sweep < totalSweeps+burnPeriod; ++sweep )
    {
-         while(true)
-         {
-            // Update the lattice. 
-            lattice.update(generator);
+      // Update the lattice by performing row*col sweeps.
+      for(int i = 0; i < lattice.getSize(); ++i)
+      {
+        lattice.update(generator);
+      }
 
-            // Move to the top of the file.
-            latticeOutput.seekg(0,std::ios::beg);
+      // If we are on a measurement sweep then do any measurement/output.
+      if((0 == sweep%measurementInterval) && (sweep >= burnPeriod))
+      {
+        // Calculate the fraction of infected sites on this sweep.
+        double orderParameter = lattice.stateCount(SIRSArray::Infected);
 
-            // Output the current state of the lattice.
-            latticeOutput << lattice << std::flush;
+        // Output the fraction of infected states and the current sweep.
+        orderParameterOutput << sweep << ' ' <<  orderParameter << '\n';
 
-            // Sleep the thread so output isn't too fast to animate.
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // Record the order parameter on this sweep.
+        orderParameterData.push_back(orderParameter);
 
-         }  
+        if(vm.count("animate"))
+        {
+          // Move to the top of the file.
+        latticeOutput.seekg(0,std::ios::beg);
+
+        // Output the current state of the lattice.
+        latticeOutput << lattice << std::flush;
+        }
+      }
    }
-   // Otherwise we only want measurements so there is no point animating.
-   else
-   {
-       for(int sweep = 0; sweep < totalSweeps+burnPeriod; ++sweep )
-       {
-       		// Update the lattice by performing row*col sweeps.
-       		for(int i = 0; i < lattice.getSize(); ++i)
-       		{
-       			lattice.update(generator);
-       		}
-
-       		// If we are on a measurement sweep then do any measurement/output.
-       		if((0 == sweep%measurementInterval) && (sweep >= burnPeriod))
-       		{
-       			// Calculate the fraction of infected sites on this sweep.
-       			double orderParameter = lattice.stateFraction(SIRSArray::Infected);
-
-       			// Output the fraction of infected states and the current sweep.
-       			orderParameterOutput << sweep << ' ' <<  orderParameter << '\n';
-
-       			// Record the order parameter on this sweep.
-       			orderParameterData.push_back(orderParameter);
-       		}
-       }
-    }
+    
 
 /*************************************************************************************************************************
 ******************************************** Output/Clean Up *************************************************************
 **************************************************************************************************************************/
 
    // Average the order parameter and calculate the error.
-   double orderParameterAverage = orderParameterData.mean();
-   double orderParameterError   = orderParameterData.error();
+   double orderParameterAverage = orderParameterData.mean()/lattice.getSize();
+   double orderParameterError   = orderParameterData.error()/lattice.getSize();
+
+   // Calculate the ``Susceptibility'' of the order parameter.
+   // Create susceptibility functor.
+   Susceptibility susceptibilityFcn;
+   double susceptibility = susceptibilityFcn(orderParameterData)/lattice.getSize();
+
+   // Calculate the error in the susceptibility using jackknife.
+   double susceptibilityError = jackKnife(susceptibilityFcn, orderParameterData)/lattice.getSize();
 
    // Create an object to hold the results.
    SIRSResults results
    {
-   		orderParameterAverage,
-   		orderParameterError
+        orderParameterAverage,
+        orderParameterError,
+        susceptibility,
+        susceptibilityError,
    };
    
    // Output the results to the command line.
@@ -188,8 +190,6 @@ int main(int argc, char const *argv[])
    // Report how long the program took to execute.
    std::cout << std::setw(30) << std::setfill(' ') << std::left << "Time take to execute(s) =    " << 
    std::right << timer.elapsed() << '\n';
-
-
 
    return 0;
 }

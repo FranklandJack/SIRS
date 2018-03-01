@@ -17,7 +17,11 @@ public:
 	/// Order parameter.
 	double orderParameter;
 	/// Order parameter error.
-	double orderParameterError; 
+	double orderParameterError;
+	/// Susceptibility.
+	double susceptibility;
+	/// Susceptibility error.
+	double susceptibilityError;
 
 	/** 
 	 *\brief operator<< overload for outputting the results.

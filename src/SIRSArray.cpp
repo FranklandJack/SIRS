@@ -37,7 +37,9 @@ SIRSArray::SIRSArray(
 		m_probIR{probIR},
 		m_probRS{probRS},
 		m_boardData(rows*cols, state)
-{}
+{
+
+}
 
 SIRSArray::SIRSArray(
 	std::default_random_engine &generator,
@@ -45,7 +47,8 @@ SIRSArray::SIRSArray(
 	int cols, 
 	double probSI, 
 	double probIR, 
-	double probRS
+	double probRS,
+	double immuneFraction
 	) : m_rowCount{rows},
 		m_colCount{cols},
 		m_probSI{probSI},
@@ -56,11 +59,38 @@ SIRSArray::SIRSArray(
 
     // Reserve the correct amount of space in the board data.
     m_boardData.reserve(rows * cols);
-    static std::uniform_int_distribution<int> distribution(0,static_cast<int>(SIRSArray::MAXSTATE)-1);
+
+    // Create a distribution to sample from the states, we -2 since we are ignoring the immune cells 
+    // and the parameter is a closed interval.
+    static std::uniform_int_distribution<int> distribution(0,static_cast<int>(SIRSArray::MAXSTATE)-2);
     for(int i = 0; i < rows*cols; ++i)
     {
         m_boardData.push_back(static_cast<SIRSArray::State>(distribution(generator)));
     }
+
+    // Calculate the actual number of immune cells that will be in the lattice.
+    int totalImmuneCells = round((immuneFraction) * (m_rowCount * m_colCount));
+
+    // Set the specified fraction of the cells completely immune to infection.
+    if(immuneFraction != 0)
+    {
+    	// Create a distribution so immune cells are chosen randomly.
+    	std::uniform_int_distribution<int> immuneDistribution(0,m_rowCount*m_colCount - 1);
+    	
+    	int counter = 0;
+
+    	while(counter < totalImmuneCells)
+    	{
+    		int index = immuneDistribution(generator);
+    		if(m_boardData[index] != SIRSArray::Immune)
+    		{
+    			m_boardData[index] = SIRSArray::Immune;
+    			++counter;
+    		}
+
+    	}
+    }
+
 }
 
 void SIRSArray::randomise(std::default_random_engine &generator)
@@ -128,6 +158,7 @@ SIRSArray::State SIRSArray::updateCell(int row, int col, std::default_random_eng
 
 		case State::Recovered : (*this)(row,col) = (distribution(generator) < m_probRS) ? State::Susceptible : State::Recovered;
 								break;
+		case State::Immune: break;
 
 		default: 
 				break;
@@ -178,6 +209,20 @@ SIRSArray::State SIRSArray::update(std::default_random_engine& generator)
 	// Update a random cell and return the state of the updated cell.
 	return updateCell(rowDistribution(generator), colDistribution(generator), generator);
 
+}
+
+int SIRSArray::stateCount(SIRSArray::State state) const
+{
+	double total = 0;
+	for(const auto& cellState : m_boardData)
+	{
+		if(state == cellState)
+		{
+			total++;
+		}
+	}
+
+	return total;
 }
 
 double SIRSArray::stateFraction(SIRSArray::State state) const

@@ -5,6 +5,7 @@
 #include <random> // For generating random numbers.
 #include <iostream> // For outputting board.
 #include <utility> // For std::pair.
+#include <cmath> // For round.
 
 /**
  * \file
@@ -23,11 +24,12 @@ public:
         Susceptible,
         Infected,
         Recovered,
+        Immune,
         MAXSTATE,
     };
 
     /// Look-up table for alive/dead cells symbols for printing.
-    static constexpr int stateSymbols[MAXSTATE] = {0,1,2};
+    static constexpr int stateSymbols[MAXSTATE] = {0,1,2,3};
 
 private:
     /// Member variable that holds number of rows in lattice.
@@ -82,6 +84,7 @@ public:
      *\param probIR probability of infected site going from infected to recovered.
      *\param probRS probability of recovered site becoming susceptible again.
      *\param state State instance to initialise all cells to will default to alive.
+     *\param immuneFraction floating point instance representing the fraction of the population who are completely immune to the infection.
      */
     SIRSArray(
     	int rows = 50, 
@@ -99,6 +102,7 @@ public:
      *\param probIR probability of infected site going from infected to recovered.
      *\param probRS probability of recovered site becoming susceptible again.
      *\param generator std::default_random_engine reference for generating random numbers.
+     *\param immuneFraction floating point instance representing the fraction of the population who are completely immune to the infection.
      */
     SIRSArray(
         std::default_random_engine &generator,
@@ -106,7 +110,8 @@ public:
     	int cols = 50, 
     	double probSI = 1.0, 
     	double probIR = 1.0, 
-    	double probRS = 1.0
+    	double probRS = 1.0,
+    	double immuneFraction = 0.0
     	);
 
     /**
@@ -196,6 +201,13 @@ public:
      *\return the new updated state of the cell.
      */
     SIRSArray::State update(std::default_random_engine& generator);
+
+    /**
+     *\brief calculates the total number of cells in a given state.
+     *\param state value representing the state of interest.
+     *\return Integer value representing the total number of cells in the state of interest
+     */
+    int stateCount(SIRSArray::State state) const;
 
     /**
      *\brief calculates the total fraction of cells in a given state.
