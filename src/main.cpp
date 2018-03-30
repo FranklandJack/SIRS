@@ -144,14 +144,15 @@ int main(int argc, char const *argv[])
         // Record the order parameter on this sweep.
         orderParameterData.push_back(orderParameter);
 
-        if(vm.count("animate"))
-        {
-          // Move to the top of the file.
-        latticeOutput.seekg(0,std::ios::beg);
+        
+      }
+      if(vm.count("animate"))
+      {
+        // Move to the top of the file.
+      latticeOutput.seekg(0,std::ios::beg);
 
-        // Output the current state of the lattice.
-        latticeOutput << lattice << std::flush;
-        }
+      // Output the current state of the lattice.
+      latticeOutput << lattice << std::flush;
       }
    }
     
@@ -193,3 +194,4 @@ int main(int argc, char const *argv[])
 
    return 0;
 }
+

@@ -7,7 +7,7 @@ OBJ_FILES=$(patsubst $(SRC_DIR)/%.cpp, %.o, $(SRC_FILES))
 
 
 CXX=g++
-CPPSTD=-std=c++14 
+CPPSTD=-std=c++11 
 DEBUG=-g
 OPT=-O2
 LFLAGS= -lboost_program_options -lboost_system -lboost_filesystem
