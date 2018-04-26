@@ -2,7 +2,7 @@
 
 DataArray::DataArray():m_size{0}{}
 
-DataArray::DataArray(int size)
+DataArray::DataArray(int size):m_size{size}
 {
     m_data.reserve(size);
 }
@@ -17,7 +17,7 @@ const double& DataArray::operator[](int index) const
     return m_data[index];
 }
 
-void DataArray::push_back(double point) 
+void DataArray::push_back(double point)
 {
     m_data.push_back(point);
     m_size++;
@@ -71,21 +71,14 @@ double DataArray::squareMean() const
 
 }
 
+double DataArray::variance() const
+{
+  return squareMean() - mean()*mean();
+}
 
 double DataArray::error() const
 {
-    double sum = 0;
-
-    for(const auto& point : m_data)
-    {
-        sum += point*point;
-    }
-
-    double meanSquared = sum / m_size;
-    double mean        = (*this).mean();
-
-    return sqrt((meanSquared - mean * mean) / (m_size - 1));
-
+      return std::sqrt(variance() / (m_size - 1));
 }
 
 

@@ -9,7 +9,7 @@
 
 
 /**
- *\file 
+ *\file
  *\class DataArray
  *\brief Class for statistical analysis of sample sets.
  *
@@ -33,8 +33,8 @@ public:
 	 *\brief Interface for a functor that takes a data array as its argument.
 	 *
 	 * This is extremely useful for calculating functions whose dependence on the data set is non-trivial.
-	 * For example, a function that depends on the first and second moment can inherit from this class as 
-	 * a functor where it can be customized and still act on the data in the set. This class also makes 
+	 * For example, a function that depends on the first and second moment can inherit from this class as
+	 * a functor where it can be customized and still act on the data in the set. This class also makes
 	 * calculating bootstrap and jackknife errors very portable with a general function for doing so.
 	 */
 	class IDataFunctor
@@ -65,7 +65,7 @@ public:
      */
     DataArray(int size);
 
-	/** 
+	/**
      *\brief Getter method for size of data.
      *\return Integer value representing the size of the DataArray.
      */
@@ -97,7 +97,7 @@ public:
     /**
      *\brief Removes most recently added sample from DataArray.
      */
-    void pop_back(); 
+    void pop_back();
 
     /**
      *\brief Reserves memory for DataArray making it faster.
@@ -133,6 +133,12 @@ public:
     double squareMean() const;
 
     /**
+     *\brief Method to calculate the variance in the data.
+     *\return floating point value representing the variance of the data.
+     */
+     double variance() const;
+
+    /**
      *\brief Method to calculate the naive error of the data.
      *\return Floating point value representing the naive error of the data.
      */
@@ -159,7 +165,7 @@ public:
      *\brief function to calculate the autocorrelation function for a range computer times.
      *\param t1 initial time value to compute autocorrelation of data for.
      *\param t2 final time value to compute autocorrelation for.
-     *\return vector of floating point values representing values of autocorrelation function indexed 
+     *\return vector of floating point values representing values of autocorrelation function indexed
      * according to their position in the vector.
      */
     std::vector<double> autoCorrelation(int t1, int t2) const;
